@@ -1,0 +1,53 @@
+sequence-diagram
+
+title CreateUser API Sequence
+
+// Define actors with icons and colors
+Client [icon: monitor, color: lightblue]
+API Gateway [icon: globe, color: blue]
+Auth Service [icon: lock, color: orange]
+User Service [icon: user, color: green]
+Database [icon: database, color: purple]
+Email Service [icon: mail, color: red]
+
+// Sequence starts
+Client > API Gateway: "POST /CreateUser (user data)"
+activate Client
+API Gateway > Auth Service: Validate Auth Token
+activate API Gateway
+
+alt [label: Auth token valid, color: green] {
+  Auth Service --> API Gateway: Auth Success
+  API Gateway > User Service: CreateUser(user data)
+  activate User Service
+
+  opt [label: Check for duplicate email] {
+    User Service > Database: Query email existence
+    Database --> User Service: Email exists?
+  }
+
+  alt [label: Email not found, color: green] {
+    User Service > Database: Insert new user
+    Database --> User Service: Insert result
+
+    par [label: Post-creation actions] {
+      User Service > Email Service: Send welcome email
+      and
+      User Service > API Gateway: User created (userId)
+    }
+
+    API Gateway --> Client: 201 Created (userId)
+  }
+  else [label: Email already exists, color: red] {
+    User Service > API Gateway: Error: Duplicate email
+    API Gateway --> Client: 409 Conflict (duplicate email)
+  }
+  deactivate User Service
+}
+else [label: Auth token invalid, color: red] {
+  Auth Service > API Gateway: Auth Failed
+  API Gateway --> Client: 401 Unauthorized
+}
+deactivate API Gateway
+deactivate Client
+
