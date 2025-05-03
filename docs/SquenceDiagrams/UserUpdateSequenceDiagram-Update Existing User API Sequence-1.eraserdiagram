@@ -1,0 +1,84 @@
+sequence-diagram
+
+title Update Existing User API Sequence
+
+// Define actors with icons and colors
+Client [icon: monitor, color: lightblue]
+API Gateway [icon: globe, color: blue]
+Mediator [icon: shuffle, color: teal]
+Auth Service [icon: lock, color: orange]
+UserCommandHandler [icon: user, color: green]
+Database [icon: database, color: purple]
+Logger [icon: file-text, color: gray]
+
+// Client initiates update request
+Client > API Gateway: "PUT /users/"{id} (user data)
+activate Client
+
+// API Gateway delegates to Mediator
+API Gateway > Mediator: Handle update user request
+activate API Gateway
+
+// Mediator authenticates request
+Mediator > Auth Service: Validate JWT token
+activate Mediator
+
+alt [label: token valid, color: green] {
+  Auth Service --> Mediator: Auth success
+}
+else [label: token invalid, color: red] {
+  Auth Service --> Mediator: Auth failure
+  Mediator --> API Gateway: 401 Unauthorized
+  API Gateway --> Client: 401 Unauthorized
+  deactivate API Gateway
+  deactivate Client
+  deactivate Mediator
+  // End sequence on auth failure
+}
+
+// Mediator forwards request to UserCommandHandler
+Mediator > UserCommandHandler: Update user (id, data)
+activate UserCommandHandler
+
+// UserCommandHandler checks if user exists
+UserCommandHandler > Database: SELECT * FROM users WHERE id=?
+Database --> UserCommandHandler: User record
+
+opt [label: user exists] {
+  // Validate new data
+  UserCommandHandler > UserCommandHandler: Validate input data
+
+  alt [label: data valid, color: green] {
+    // Update user in database
+    UserCommandHandler > Database: UPDATE users SET ... WHERE id=?
+    Database --> UserCommandHandler: Update result
+
+    // Log the update and notify in parallel
+    par [label: log and notify] {
+      UserCommandHandler > Logger: Log "User updated"
+      and [label: notify] {
+        UserCommandHandler > Mediator: Send update notification (email/SMS)
+      }
+    }
+
+    // Respond to Mediator
+    UserCommandHandler --> Mediator: 200 OK (user updated)
+  }
+  else [label: data invalid, color: orange] {
+    UserCommandHandler --> Mediator: 400 Bad Request (validation error)
+  }
+}
+else [label: user not found, color: red] {
+  UserCommandHandler --> Mediator: 404 Not Found
+}
+
+// Mediator returns response to API Gateway
+Mediator --> API Gateway: Response (status, message)
+
+// API Gateway returns response to client
+API Gateway --> Client: Response (status, message)
+deactivate UserCommandHandler
+deactivate API Gateway
+deactivate Client
+deactivate Mediator
+
