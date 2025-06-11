@@ -11,10 +11,13 @@ namespace UserUpdateAPI.Services
     public class CreateCustomerService : ICreateCustomerService
     {
         private readonly AppDbContext _dbContext;
-    
-        public CreateCustomerService(AppDbContext dbContext)
+        private readonly IEmailService _emailService;
+
+        public CreateCustomerService(AppDbContext dbContext, IEmailService emailService)
         {
             _dbContext = dbContext;
+            _emailService = emailService;
+
         }
 
         public async Task<CreateCustomerResult> CreateCustomerAsync(CreateCustomerRequest request)
@@ -40,7 +43,8 @@ namespace UserUpdateAPI.Services
             _dbContext.Customers.Add(customer);
             await _dbContext.SaveChangesAsync();
 
-
+            // Send welcome email
+            await _emailService.SendWelcomeEmailAsync(customer.Email, customer.Name);
             return new CreateCustomerResult
             {
                 IsSuccess = true,
