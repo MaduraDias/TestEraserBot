@@ -1,0 +1,35 @@
+sequence-diagram
+
+title Create Customer via REST API
+
+Client               [icon: monitor,        color: purple]
+CustomerController   [icon: server,         color: blue]
+Mediator             [icon: shuffle,        color: blue]
+CustomerService      [icon: user-plus,      color: blue]
+Database             [icon: database]
+
+Client > CustomerController: POST /customers\nwith customer details
+activate Client
+activate CustomerController
+
+CustomerController > Mediator: Send CreateCustomerCommand
+activate Mediator
+
+Mediator > CustomerService: Handle CreateCustomerCommand
+activate CustomerService
+
+CustomerService > Database: Store new customer record
+activate Database
+Database --> CustomerService: Customer ID generated
+deactivate Database
+
+CustomerService --> Mediator: Customer created with ID
+deactivate CustomerService
+
+Mediator --> CustomerController: Customer created with ID
+deactivate Mediator
+
+CustomerController --> Client: 201 Created\nwith customer ID
+deactivate CustomerController
+deactivate Client
+
